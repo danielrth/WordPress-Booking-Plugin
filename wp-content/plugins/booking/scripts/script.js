@@ -1,18 +1,20 @@
 jQuery( function ( $ )
 {
 	'use strict';
-	
+
 	$(document).ready( function() {
-		
-		// $.ajax({
-		//   type: "POST",
-		//   url: "https://www.google.co.uk",
-		//   data: "data",
-		//   success: function(result){
-		//         alert(result);
-		//     }
-		// });
+
+		jQuery.post(
+		    '/wp-admin/admin-ajax.php', 
+		    {
+		        'action': 'action1',
+		        'data':   'foobarid'
+		    }, 
+		    function(response){
+		        alert('The server responded: ' + response);
+		    }
+		);
 
 		$("input#demo").dcalendarpicker();
 	})
-} );
+});
