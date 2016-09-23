@@ -19,11 +19,13 @@ define( 'COREPLUS_API_ACCESS_TOKEN', "6176dca0-8be2-496c-9e47-cc4ed06fd7b2");
 define( 'COREPLUS_SECRET_KEY', "1kUwumuhkadPEWfKlgVH/3cUGM+DL4zNfw7YXwUm2zYednvAM8P8QQ==");
 
 function booking_custom_assets() {
-	wp_enqueue_style( 'calendar-style', BOOKING_PLUGIN_URL . '/styles/dcalendar.picker.css' );
+	wp_enqueue_style( 'calendar-style', 'http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css' );
 }
 
 function booking_custom_jscript() {
-    wp_enqueue_script( 'calendar-script', BOOKING_PLUGIN_URL . '/scripts/dcalendar.picker.js' );
+
+    // wp_enqueue_script('jquery-ui-core');
+    wp_enqueue_script('jquery-ui-datepicker');
     wp_enqueue_script( 'booking-script', BOOKING_PLUGIN_URL . '/scripts/script.js' );
 }
 
@@ -31,23 +33,27 @@ add_shortcode( 'booking_form', 'booking_form_handler' );
 
 function booking_form_handler() {
 
-	add_action( 'wp_enqueue_scripts', 'booking_custom_assets');
+	add_action( 'wp_footer', 'booking_custom_assets');
 	add_action( 'wp_footer', 'booking_custom_jscript' );
 
 	$html_form = "";
 	$html_form .= "<div><p><span style='margin-right:30px'>Rigistered Clients</span>";
-	$html_form .= "<select id='select-registered-clients'><option></option></select>";
+	$html_form .= "<select id='select-registered-client'><option></option></select>";
 	$html_form .= "</p></div>";	
 
 	$register_form = "<div id='div-register-form>'";
 	$register_form .= "<h2>Register New Client</h2>";
 	$register_form .= "<table><tr>";
 	$register_form .= "<td>First Name</td>";
-	$register_form .= "<td><input type=text /></td></tr>";
+	$register_form .= "<td><input type=text id='input-client-firstname' /></td></tr>";
 	$register_form .= "<tr><td>Last Name</td>";
-	$register_form .= "<td><input type=text /></td></tr>";
+	$register_form .= "<td><input type=text id='input-client-lasttname' /></td></tr>";
 	$register_form .= "<tr><td>Birth of Date</td>";
-	$register_form .= "<td>calendar</td></tr>";
+	$register_form .= "<td><input type=text class='BirthdayPicker' id='input-client-birthday' /></td></tr>";
+	$register_form .= "<tr><td>Phone Number</td>";
+	$register_form .= "<td><input type=text id='input-client-phonenumber' /></td></tr>";
+	$register_form .= "<tr><td>Email</td>";
+	$register_form .= "<td><input type=text id='input-client-email' /></td></tr>";
 	$register_form .= "</table>";
 	$register_form .= "<button id='btn-submit-client'>Submit</button></div>";
 
@@ -59,9 +65,9 @@ function booking_form_handler() {
 	$booking_form .= "<td>Location</td>";
 	$booking_form .= "<td><select id='select-location'><option></option></select></td></tr>";
 	$booking_form .= "<tr><td>Date</td>";
-	$booking_form .= "<td><input type=text class='form-control' id='demo' /></td></tr>";
-	$booking_form .= "<tr><td>Time</td>";
 	$booking_form .= "<td><input type=text class='DatePicker' /></td></tr>";
+	$booking_form .= "<tr><td>Time</td>";
+	$booking_form .= "<td><input type=text class='TimePicker' /></td></tr>";
 	$booking_form .= "</table>";
 	$booking_form .= "<button id='btn-submit-booking'>Submit</button></div>";
 
@@ -82,9 +88,15 @@ function ajax_call_coreplus() {
 	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
 
 	$jwToken = generateJwToken($_POST['api_name'], $_POST['type']);
-	curl_setopt($curl, CURLOPT_HTTPHEADER, array(
-    	$jwToken
-    ));
+	var_dump($jwToken);
+	curl_setopt($curl, CURLOPT_HTTPHEADER,
+		$_POST['type'] == "GET" ? 
+			array($jwToken) : array($jwToken, "Content-Type: application/json")
+	);
+
+	if ( $_POST['type'] == "POST" ) {
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $_POST['data']); 
+	}
 
 	$resp = curl_exec($curl);
 	echo $resp;
@@ -112,6 +124,7 @@ function generateJwToken($apiName, $callType) {
 
 	// $token = "";
 	/* $token = "Authorization: JwToken eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3MzY4MjQ0NCwiZXhwIjoxNDczNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvbG9jYXRpb24vIiwiaHR0cE1ldGhvZCI6IkdFVCJ9.SKJGvbkNrr2Pcsx1MVrxgsEbLjO2HJ9wAdqWb_MvAGo"; */
+	$auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3NDUzNDkxNywiZXhwIjoxNDgwNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvY2xpZW50LyIsImh0dHBNZXRob2QiOiJQT1NUIn0.1XbXFQhV-Ckl84HrUmKo1cwts_ywHMCyoh15Z15ZyX8";
 
 	return "Authorization: JwToken " . $auth;
 }
