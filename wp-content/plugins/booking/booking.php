@@ -116,7 +116,8 @@ function generateJwToken($apiName, $callType) {
 	require_once( plugin_dir_path() . 'jwt.php' );
 	
 	$auth = JWT::encode( array( 
-		  "iss" => "http://localhost",
+		  // "iss" => "http://localhost",
+		"iss" => "http://melbournewalking.merapatiala.com",
 		  "aud" => "https://sandbox.coreplus.com.au",
 		  "nbf" => 1474534917,
 		  "exp" => 1483782444,

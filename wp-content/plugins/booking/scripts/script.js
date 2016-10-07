@@ -157,7 +157,7 @@ jQuery( function ( $ )
 		}
 
 		jQuery.post(
-		    '/mywp/wp-admin/admin-ajax.php',
+		    '/wp-admin/admin-ajax.php',
 		    {
 		        'action': 'action_coreplus_api',
 		        'api_name':   api_name,
