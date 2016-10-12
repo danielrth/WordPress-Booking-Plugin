@@ -75,7 +75,7 @@ function booking_form_handler() {
 	$booking_form .= "<button id='btn-submit-booking'>Submit</button></div>";
 	$booking_form .= "<div><h5 id='h-show-alert' style='color:red'></div>";
 
-	$html_form .= $register_form . $booking_form . $auth;
+	$html_form .= $register_form . $booking_form;
 
 	return $html_form;
 }
@@ -84,7 +84,6 @@ add_action( 'wp_ajax_action_coreplus_api', 'ajax_call_coreplus' );
 add_action( 'wp_ajax_nopriv_action_coreplus_api', 'ajax_call_coreplus' );
 
 function ajax_call_coreplus() {
-
 	$curl = curl_init();
 	// Set some options - we are passing in a useragent too here
 	curl_setopt($curl, CURLOPT_URL, 'https://sandbox.coreplus.com.au/API/Core/v2/'.$_POST['api_name'].'/');	
@@ -98,8 +97,6 @@ function ajax_call_coreplus() {
 	);
 	if ( $_POST['type'] == "POST" ) {
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($_POST['data']));
-		// var_dump($_POST);
-		var_dump(json_encode($_POST['data']));
 	}
 
 	$resp = curl_exec($curl);

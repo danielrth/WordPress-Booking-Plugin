@@ -75,6 +75,7 @@ jQuery( function ( $ )
 
 			var startTime = new Date (startDate.getTime() + getTimeDiffFromPicker($('#input-start-time').val()));
 			var endTime = new Date (startDate.getTime() + getTimeDiffFromPicker($('#input-end-time').val()));
+
 			if (startTimeDiff == endTimeDiff) {
 				isValid = false;
                 warnInvalidInput ($('#input-end-time'), false);
@@ -90,13 +91,24 @@ jQuery( function ( $ )
 			if (isValid == false)
             	return;
 
+            startTime = new Date(startTime.getTime() + 3600000 * 10);
+            endTime = new Date(endTime.getTime() + 3600000 * 10);
+
+			// var strStartTime = startTime.toISOString().slice(0, 19) + convertOffsetToTimeZone(startTime.getTimezoneOffset());
+			// var strEndTime = endTime.toISOString().slice(0, 19) + convertOffsetToTimeZone(endTime.getTimezoneOffset());
+			var strStartTime = startTime.toISOString().slice(0, 19) + "+10:00";
+			var strEndTime = endTime.toISOString().slice(0, 19) + "+10:00";
+
+            // console.log(strStartTime);
+            // console.log(strEndTime);
+            // return;
 			var clientsArr = new Array();
 			clientsArr.push({"clientId": $('#select-registered-client').val()});
 			var doctorsArr = {"practitionerId": $('#select-doctor').val()}
 
 			var postData = {
-			 	"startDateTime": startTime.toISOString(), 
-			 	"endDateTime": endTime.toISOString(), 
+			 	"startDateTime": strStartTime, 
+			 	"endDateTime": strEndTime, 
 			 	"practitioner": JSON.stringify(doctorsArr),
 			 	"locationId": $('#select-location').val(),
 			 	"clients": JSON.stringify(clientsArr)};
@@ -114,10 +126,26 @@ jQuery( function ( $ )
 		});
 	});
 
+	function convertOffsetToTimeZone(offsetValue) {
+		var strTimezone = offsetValue <= 0 ? "+" : "-";
+
+		offsetValue = Math.abs(offsetValue);
+		var offsetHours = offsetValue / 60;
+
+		strTimezone += Math.floor(offsetHours) >= 10 ? Math.floor(offsetHours).toString() : "0" + Math.floor(offsetHours).toString();
+
+		strTimezone += ":";
+		var offsetMinutes = offsetValue - offsetHours * 60;
+		strTimezone += offsetMinutes >= 10 ? offsetMinutes.toString() : "0" + offsetMinutes.toString();
+		return strTimezone;
+	}
+
 	function getTimeDiffFromPicker(strTime) {
 		if (strTime.indexOf('am') !== -1) {
 			var numTime = strTime.replace('am' , '').split(':');
-			return parseInt(numTime[0]) * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
+			var numHour = parseInt(numTime[0]);
+			if (numHour >= 12) numHour = numHour - 12;
+			return numHour * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
 		}
 		if (strTime.indexOf('pm') !== -1) {
 			var numTime = strTime.replace('pm' , '').split(':');
@@ -145,7 +173,7 @@ jQuery( function ( $ )
             });
 		}
 	}
-	
+
 	function sendRequestToAction(api_name, request_type, post_data = "") {
 
 		if (request_type == "POST") {
@@ -157,7 +185,7 @@ jQuery( function ( $ )
 		}
 
 		jQuery.post(
-		    '/wp-admin/admin-ajax.php',
+		    '/mywp/wp-admin/admin-ajax.php',
 		    {
 		        'action': 'action_coreplus_api',
 		        'api_name':   api_name,
