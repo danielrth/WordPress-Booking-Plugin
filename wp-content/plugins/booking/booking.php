@@ -27,6 +27,7 @@ function booking_custom_jscript() {
 
     wp_enqueue_script('jquery-ui-datepicker');
     wp_enqueue_script( 'timepicker-script', BOOKING_PLUGIN_URL . '/scripts/jquery.timepicker.js' );
+    wp_enqueue_script( 'scheduler-script', BOOKING_PLUGIN_URL . '/scripts/scheduler.js' );
     wp_enqueue_script( 'booking-script', BOOKING_PLUGIN_URL . '/scripts/script.js' );
 }
 
@@ -37,43 +38,58 @@ function booking_form_handler() {
 	add_action( 'wp_footer', 'booking_custom_assets');
 	add_action( 'wp_footer', 'booking_custom_jscript' );
 
-	$html_form = "";
-	$html_form .= "<div><p><span style='margin-right:30px'>Rigistered Clients</span>";
-	$html_form .= "<select id='select-registered-client'><option value='0'>I am a new client</option></select>";
-	$html_form .= "</p></div>";
+	$html_form = 
+		"<div>
+			<p>
+				<span style='margin-right:30px'>Rigistered Clients</span>
+				<select id='select-registered-client'>
+					<option value='0'>I am a new client</option></select>
+			</p>
+		</div>";
 
-	$register_form = "<div id='div-register-form'>";
-	$register_form .= "<h2>Register New Client</h2>";
-	$register_form .= "<table><tr>";
-	$register_form .= "<td>First Name</td>";
-	$register_form .= "<td><input type=text id='input-client-firstname' /></td></tr>";
-	$register_form .= "<tr><td>Last Name</td>";
-	$register_form .= "<td><input type=text id='input-client-lastname' /></td></tr>";
-	$register_form .= "<tr><td>Birth of Date</td>";
-	$register_form .= "<td><input type=text class='BirthdayPicker' id='input-client-birthday' /></td></tr>";
-	$register_form .= "<tr><td>Phone Number</td>";
-	$register_form .= "<td><input type=text id='input-client-phonenumber' /></td></tr>";
-	$register_form .= "<tr><td>Email</td>";
-	$register_form .= "<td><input type=text id='input-client-email' /></td></tr>";
-	$register_form .= "</table>";
-	$register_form .= "<button id='btn-submit-client'>Submit</button></div>";
+	$register_form = 
+		"<div id='div-register-form'>
+			<h2>Register New Client</h2>
+			<table>
+				<tr><td>First Name</td>
+					<td><input type=text id='input-client-firstname' /></td>
+				</tr>
+				<tr><td>Last Name</td>
+					<td><input type=text id='input-client-lastname' /></td>
+				</tr>
+				<tr><td>Birth of Date</td>
+					<td><input type=text class='BirthdayPicker' id='input-client-birthday' /></td></tr>
+				<tr><td>Phone Number</td>
+					<td><input type=text id='input-client-phonenumber' /></td></tr>
+				<tr><td>Email</td>
+					<td><input type=text id='input-client-email' /></td></tr>
+			</table>
+			<button id='btn-submit-client'>Submit</button>
+		</div>";
 
-	$booking_form = "<div id='div-booking-form'>";
-	$booking_form .= "<h2>Booking an Appointment</h2>";
-	$booking_form .= "<table><tr>";
-	$booking_form .= "<td>Doctor</td>";
-	$booking_form .= "<td><select id='select-doctor'><option value='0'></option></select></td></tr>";
-	$booking_form .= "<td>Location</td>";
-	$booking_form .= "<td><select id='select-location'><option value='0'>Unknown</option></select></td></tr>";
-	$booking_form .= "<tr><td>Date</td>";
-	$booking_form .= "<td><input type=text class='DatePicker' id='input-date' /></td></tr>";
-	$booking_form .= "<tr><td>Time</td>";
-	$booking_form .= "<td><input type=text class='TimePicker' id='input-start-time' size=9 />";
-	$booking_form .= "<span style='padding-left:20px; padding-right: 20px;'>to</span>";
-	$booking_form .= "<input type=text class='TimePicker' id='input-end-time' size=9 /></td></tr>";
-	$booking_form .= "</table>";
-	$booking_form .= "<button id='btn-submit-booking'>Submit</button></div>";
-	$booking_form .= "<div><h5 id='h-show-alert' style='color:red'></div>";
+	$booking_form = 
+		"<div id='div-booking-form'>
+			<h2>Booking an Appointment</h2>
+			<table>
+				<tr><td>Doctor</td>
+					<td><select id='select-doctor'><option value='0'></option></select></td></tr>
+				<tr><td>Date</td>
+					<td><input type=text class='DatePicker' id='input-date' /></td></tr>
+
+				<tr><td><button id='btn-check-availability'>Check availability</button></td></tr>
+				<tr><td colspan=2  style='position:relative;height:120px'>
+						<div id='div-schedule' style='position:absolute;'>
+							<canvas id='myCanvas' width='1200px';height='100px'></canvas>
+						</div></td></tr>
+				<tr><td>Location</td>
+					<td><select id='select-location'><option value='0'>Unknown</option></select></td></tr>
+				<tr><td>Time</td>
+					<td><input type=text class='TimePicker' id='input-start-time' size=9 />
+					<span style='padding-left:20px padding-right: 20px'>to</span>
+					<input type=text class='TimePicker' id='input-end-time' size=9 /></td></tr>
+			</table>
+			<button id='btn-submit-booking'>Submit</button></div>
+			<div><h5 id='h-show-alert' style='color:red'></div>";
 
 	$html_form .= $register_form . $booking_form;
 
@@ -90,13 +106,18 @@ function ajax_call_coreplus() {
 	curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
 
-	$jwToken = generateJwToken($_POST['api_name'], $_POST['type']);
+	$jwToken = generateJwToken($_POST['api_name'], $_POST['type'], $_POST['data']);
 	curl_setopt($curl, CURLOPT_HTTPHEADER,
 		$_POST['type'] == "GET" ? 
 			array($jwToken) : array($jwToken, "Content-Type: application/json")
 	);
+
 	if ( $_POST['type'] == "POST" ) {
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($_POST['data']));
+	}
+
+	if ( $_POST['api_name'] == "availabilityslot" ) {
+		curl_setopt($curl, CURLOPT_POSTFIELDS, $_POST['data']);
 	}
 
 	$resp = curl_exec($curl);
@@ -109,7 +130,7 @@ function ajax_call_coreplus() {
 	curl_close($curl);
 }
 
-function generateJwToken($apiName, $callType) {
+function generateJwToken($apiName, $callType, $postParam = '') {
 	require_once( plugin_dir_path() . 'jwt.php' );
 	
 	$auth = JWT::encode( array( 
@@ -120,9 +141,9 @@ function generateJwToken($apiName, $callType) {
 		  "exp" => 1483782444,
 		  "consumerId" => COREPLUS_CONSUMER_ID,
 		  "accessToken" => COREPLUS_API_ACCESS_TOKEN,
-		  "url" => "/API/Core/v2/" . $apiName . "/",
-		  "httpMethod" => $callType), COREPLUS_SECRET_KEY );
-
+		  "url" => "/API/Core/v2/" . $apiName . ($apiName == "availabilityslot" ? "/?" . $postParam : "/"),
+		  "httpMethod" => $callType), COREPLUS_SECRET_KEY );	
+	// var_dump($auth);
 	// $token = "";
 	/* $token = "Authorization: JwToken eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3MzY4MjQ0NCwiZXhwIjoxNDczNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvbG9jYXRpb24vIiwiaHR0cE1ldGhvZCI6IkdFVCJ9.SKJGvbkNrr2Pcsx1MVrxgsEbLjO2HJ9wAdqWb_MvAGo"; */
 	// $auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3NDUzNDkxNywiZXhwIjoxNDgwNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvY2xpZW50LyIsImh0dHBNZXRob2QiOiJQT1NUIn0.1XbXFQhV-Ckl84HrUmKo1cwts_ywHMCyoh15Z15ZyX8";

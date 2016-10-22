@@ -4,6 +4,7 @@ jQuery( function ( $ )
 
 	$(document).ready( function() {
 
+		const timezoneId = "39d62534-501c-49cd-9da9-6fa8d6a81f48";
 		$("input.DatePicker").datepicker();
 		$("input.BirthdayPicker").datepicker (
 		{
@@ -12,6 +13,7 @@ jQuery( function ( $ )
 			changeYear: true
 		});
 		$("input.TimePicker").timepicker({ 'scrollDefault': 'now' });
+		var cnvTimeline = document.getElementById("myCanvas").getContext('2d');
 
 		$('#h-show-alert').hide();
 
@@ -47,15 +49,55 @@ jQuery( function ( $ )
 			 	"birthday": $('#input-client-birthday').val(),
 			 	"phoneNumber": $('#input-client-phonenumber').val(),
 			 	"eMail": $('#input-client-email').val()};
-			// alert (postDataString);
 			sendRequestToAction('client', 'POST', postData);
 		});
 
+		//check availability slots of doctor
+		$('#btn-check-availability').click(function() {
+			var isValid = true;
+			// $('#select-doctor,#input-date').each(function () {
+   //              if ($.trim($(this).val()) == '' || 
+   //              	($(this).attr('id')=='select-doctor' && $(this).prop('selectedIndex') == 0))
+   //              {
+   //                  isValid = false;
+   //                  warnInvalidInput ($(this), false);
+   //              }
+   //              else {
+   //                  warnInvalidInput ($(this), true);
+   //              }
+   //          });
+			// if (isValid == false)
+   //          	return;
+
+            var checkDate = new Date ($('#input-date').val());
+            var strCheckDate = checkDate.getFullYear() + '-' + 
+            			formatTimeNumber(checkDate.getMonth() + 1) + '-' + 
+            			formatTimeNumber(checkDate.getDate());
+
+            var postData = "startDate=" + strCheckDate + "&endDate=" + strCheckDate + "&practitionerId=" + $('#select-doctor').val();
+     //        var postData = {
+			 	// "startDate": strCheckDate, 
+			 	// "endDate": strCheckDate, 
+			 	// "practitionerId": $('#select-doctor').val()};
+			console.log (postData);
+			sendRequestToAction('availabilityslot', 'GET', postData);
+		});
+
+		//submit booking appointment
 		$('#btn-submit-booking').click(function() {
+
+	      	cnvTimeline.fillStyle = "red";
+			cnvTimeline.strokeStyle = "green";
+			cnvTimeline.lineWidth = "1";
+			cnvTimeline.fillRect(200, 10, 200, 50);
+			cnvTimeline.strokeRect(0, 10, 400, 50);
+
+			return;
 			//validate input data
 
 			var isValid = true;
-			$('#select-registered-client,#select-doctor,#select-location,#input-date,#input-start-time,#input-end-time').each(function () {
+			$('#select-registered-client,#select-doctor,#select-location,#input-date,#input-start-time,#input-end-time')
+			.each(function () {
                 if ($.trim($(this).val()) == '' || 
                 	($(this).attr('id')=='select-registered-client' && $(this).prop('selectedIndex') == 0) || 
                 	($(this).attr('id')=='select-doctor' && $(this).prop('selectedIndex') == 0) || 
@@ -94,8 +136,6 @@ jQuery( function ( $ )
             startTime = new Date(startTime.getTime() + 3600000 * 10);
             endTime = new Date(endTime.getTime() + 3600000 * 10);
 
-			// var strStartTime = startTime.toISOString().slice(0, 19) + convertOffsetToTimeZone(startTime.getTimezoneOffset());
-			// var strEndTime = endTime.toISOString().slice(0, 19) + convertOffsetToTimeZone(endTime.getTimezoneOffset());
 			var strStartTime = startTime.toISOString().slice(0, 19) + "+10:00";
 			var strEndTime = endTime.toISOString().slice(0, 19) + "+10:00";
 
@@ -109,9 +149,9 @@ jQuery( function ( $ )
 			var postData = {
 			 	"startDateTime": strStartTime, 
 			 	"endDateTime": strEndTime, 
-			 	"practitioner": JSON.stringify(doctorsArr),
+			 	"practitioner": doctorsArr,
 			 	"locationId": $('#select-location').val(),
-			 	"clients": JSON.stringify(clientsArr)};
+			 	"clients": clientsArr};
 			// console.log (postData);
 			sendRequestToAction('appointment', 'POST', postData);
 		});
@@ -125,6 +165,10 @@ jQuery( function ( $ )
 		    }
 		});
 	});
+
+	function formatTimeNumber (ttt) {
+		return ttt < 10 ? "0" + ttt : "" + ttt;
+	}
 
 	function convertOffsetToTimeZone(offsetValue) {
 		var strTimezone = offsetValue <= 0 ? "+" : "-";
@@ -240,10 +284,23 @@ jQuery( function ( $ )
 							});
 			        		break;
 			        	case "appointment":
-			        		var newApp = resp_data.appointment;
-			        		if (newApp['appointmentId']) {
-			        			$('#h-show-alert').html('Successfully booked an appointment.');
+			        		if ('appointment' in resp_data) {
+			        			var newApp = resp_data.appointment;
+				        		if ('appointmentId' in newApp) {
+				        			$('#h-show-alert').html('Successfully booked an appointment.');
+				        		}
 			        		}
+			        		else if ('result' in resp_data){
+			        			var resultRes = resp_data.result[0];
+			        			$('#h-show-alert').html(resultRes['reason']);
+			        		}
+			        		else {
+			        			$('#h-show-alert').html('Failed. Try again later.');
+			        		}
+			        		break;
+			        	case "availabilityslot":
+			        		var timeSlots = resp_data.timeslots;
+			        		console.log(timeSlots);
 			        		break;
 			        	default:
 			        		break;
