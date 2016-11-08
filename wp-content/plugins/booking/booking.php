@@ -141,11 +141,11 @@ function ajax_call_coreplus() {
 }
 
 function generateJwToken($apiName, $callType, $isSendURLHeader, $postParam = '') {
-	require_once( plugin_dir_path() . 'jwt.php' );
+	require_once( plugin_dir_path(__FILE__) . 'jwt.php' );
 	
 	$auth = JWT::encode( array( 
-		  "iss" => "http://localhost",
-		// "iss" => "http://melbournewalking.merapatiala.com",
+		  // "iss" => "http://localhost",
+		"iss" => "http://melbournewalking.merapatiala.com",
 		  "aud" => "https://sandbox.coreplus.com.au",
 		  "nbf" => 1474534917,
 		  "exp" => 1483782444,

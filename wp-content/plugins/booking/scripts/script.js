@@ -170,6 +170,7 @@ jQuery( function ( $ )
 			}
 
 			jQuery.post(
+			    // '/wp-admin/admin-ajax.php',
 			    '/mywp/wp-admin/admin-ajax.php',
 			    {
 			        'action': 'action_coreplus_api',
