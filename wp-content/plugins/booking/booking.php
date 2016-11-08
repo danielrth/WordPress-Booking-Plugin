@@ -77,12 +77,18 @@ function booking_form_handler() {
 					<td><input type=text class='DatePicker' id='input-date' /></td></tr>
 
 				<tr><td><button id='btn-check-availability'>Check availability</button></td></tr>
-				<tr><td colspan=2  style='position:relative;height:120px'>
-						<div id='div-schedule' style='position:absolute;'>
-							<canvas id='myCanvas' width='1200px';height='100px'></canvas>
+				<tr><td colspan=2>
+						<h3>Available location</h3>
+						<div id='div-available-location'>
 						</div></td></tr>
-				<tr><td>Location</td>
-					<td><select id='select-location'><option value='0'>Unknown</option></select></td></tr>
+				<tr><td colspan=2>
+						<h3>Availability Slots</h3>
+						<div id='div-schedule'>
+						</div></td></tr>
+				<tr><td colspan=2>
+						<h3>Booked Appointments</h3>
+						<div id='div-appointments'>
+						</div></td></tr>
 				<tr><td>Time</td>
 					<td><input type=text class='TimePicker' id='input-start-time' size=9 />
 					<span style='padding-left:20px padding-right: 20px'>to</span>
@@ -101,12 +107,20 @@ add_action( 'wp_ajax_nopriv_action_coreplus_api', 'ajax_call_coreplus' );
 
 function ajax_call_coreplus() {
 	$curl = curl_init();
+	$isSendURLHeader = $_POST['type'] == "GET" && $_POST['data'] != "";
+
 	// Set some options - we are passing in a useragent too here
-	curl_setopt($curl, CURLOPT_URL, 'https://sandbox.coreplus.com.au/API/Core/v2/'.$_POST['api_name'].'/');	
+	$api_url = 'https://sandbox.coreplus.com.au/API/Core/v2/'.$_POST['api_name'] .
+		($isSendURLHeader ? "/?" . $_POST['data'] : "/");
+	
+	// if ( $_POST['api_name'] == "availabilityslot" ) {
+	// 	var_dump($api_url);
+	// }
+	curl_setopt($curl, CURLOPT_URL, $api_url);	
 	curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
 
-	$jwToken = generateJwToken($_POST['api_name'], $_POST['type'], $_POST['data']);
+	$jwToken = generateJwToken($_POST['api_name'], $_POST['type'], $isSendURLHeader, $_POST['data']);
 	curl_setopt($curl, CURLOPT_HTTPHEADER,
 		$_POST['type'] == "GET" ? 
 			array($jwToken) : array($jwToken, "Content-Type: application/json")
@@ -114,10 +128,6 @@ function ajax_call_coreplus() {
 
 	if ( $_POST['type'] == "POST" ) {
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($_POST['data']));
-	}
-
-	if ( $_POST['api_name'] == "availabilityslot" ) {
-		curl_setopt($curl, CURLOPT_POSTFIELDS, $_POST['data']);
 	}
 
 	$resp = curl_exec($curl);
@@ -130,21 +140,24 @@ function ajax_call_coreplus() {
 	curl_close($curl);
 }
 
-function generateJwToken($apiName, $callType, $postParam = '') {
+function generateJwToken($apiName, $callType, $isSendURLHeader, $postParam = '') {
 	require_once( plugin_dir_path() . 'jwt.php' );
 	
 	$auth = JWT::encode( array( 
-		  // "iss" => "http://localhost",
-		"iss" => "http://melbournewalking.merapatiala.com",
+		  "iss" => "http://localhost",
+		// "iss" => "http://melbournewalking.merapatiala.com",
 		  "aud" => "https://sandbox.coreplus.com.au",
 		  "nbf" => 1474534917,
 		  "exp" => 1483782444,
 		  "consumerId" => COREPLUS_CONSUMER_ID,
 		  "accessToken" => COREPLUS_API_ACCESS_TOKEN,
-		  "url" => "/API/Core/v2/" . $apiName . ($apiName == "availabilityslot" ? "/?" . $postParam : "/"),
-		  "httpMethod" => $callType), COREPLUS_SECRET_KEY );	
-	// var_dump($auth);
-	// $token = "";
+		  // "url" => "/API/Core/v2/" . $apiName . "/",
+		  "url" => "/API/Core/v2/" . $apiName . ($isSendURLHeader ? "/?" . $postParam : "/"),
+		  "httpMethod" => $callType), COREPLUS_SECRET_KEY );
+	// if ($apiName == "availabilityslot"){
+	// 	var_dump($postParam);
+	// }
+		
 	/* $token = "Authorization: JwToken eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3MzY4MjQ0NCwiZXhwIjoxNDczNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvbG9jYXRpb24vIiwiaHR0cE1ldGhvZCI6IkdFVCJ9.SKJGvbkNrr2Pcsx1MVrxgsEbLjO2HJ9wAdqWb_MvAGo"; */
 	// $auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3NDUzNDkxNywiZXhwIjoxNDgwNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvY2xpZW50LyIsImh0dHBNZXRob2QiOiJQT1NUIn0.1XbXFQhV-Ckl84HrUmKo1cwts_ywHMCyoh15Z15ZyX8";
 
