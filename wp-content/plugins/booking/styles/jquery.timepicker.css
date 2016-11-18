@@ -1,3 +1,7 @@
+div#ui-datepicker-div {
+    font-size: 12px;
+    line-height: 1.4em;
+}
 .ui-timepicker-wrapper {
 	overflow-y: auto;
 	height: 150px;

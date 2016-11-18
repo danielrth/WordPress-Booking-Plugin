@@ -1,16 +1,11 @@
 <?php
-/**
- * @package Appointment Booking Plugin
- * @version 1.0
- */
-
 /*
-Plugin Name: Appointment Booking
-Plugin URI: 
-Description: Appointment Booking Plugin
+Plugin Name: DR CorePlus Booking
+Plugin URI: http://www.CorePlusBookingPlugin.com
+Description: DR CorePlus Booking
 Author: Daniel
 Version: 1.0
-Author URI: 
+Author URI: http://www.CorePlusBookingPlugin.com
 */
 
 define( 'BOOKING_PLUGIN_URL', plugins_url( '', __FILE__ ));
@@ -28,6 +23,7 @@ function booking_custom_jscript() {
     wp_enqueue_script('jquery-ui-datepicker');
     wp_enqueue_script( 'timepicker-script', BOOKING_PLUGIN_URL . '/scripts/jquery.timepicker.js' );
     wp_enqueue_script( 'scheduler-script', BOOKING_PLUGIN_URL . '/scripts/scheduler.js' );
+    wp_enqueue_script( 'func-script', BOOKING_PLUGIN_URL . '/scripts/functions.js' );
     wp_enqueue_script( 'booking-script', BOOKING_PLUGIN_URL . '/scripts/script.js' );
 }
 
@@ -38,18 +34,9 @@ function booking_form_handler() {
 	add_action( 'wp_footer', 'booking_custom_assets');
 	add_action( 'wp_footer', 'booking_custom_jscript' );
 
-	$html_form = 
-		"<div>
-			<p>
-				<span style='margin-right:30px'>Rigistered Clients</span>
-				<select id='select-registered-client'>
-					<option value='0'>I am a new client</option></select>
-			</p>
-		</div>";
-
 	$register_form = 
 		"<div id='div-register-form'>
-			<h2>Register New Client</h2>
+			<h4>Register New Client</h4>
 			<table>
 				<tr><td>First Name</td>
 					<td><input type=text id='input-client-firstname' /></td>
@@ -64,12 +51,30 @@ function booking_form_handler() {
 				<tr><td>Email</td>
 					<td><input type=text id='input-client-email' /></td></tr>
 			</table>
-			<button id='btn-submit-client'>Submit</button>
+			<button id='btn-submit-client'>Register</button>
 		</div>";
 
-	$booking_form = 
-		"<div id='div-booking-form'>
-			<h2>Booking an Appointment</h2>
+	$booking_history_form = "<div id='div-history-form'></div>";
+
+	$html_form = 
+		"<div>
+			<p>
+				<span style='margin-right:30px'>Rigistered Clients</span>
+				<select id='select-registered-client'>
+					<option value='0'>I am a new client</option></select>
+			</p>
+			<p id='p-verify-client'>
+				<span style='margin-right:30px'>Client ID: </span>
+				<input type=text id='input-client-id' placeholder='Please enter your ID' />
+				<button id='btn-verify-client-id'>Verify</button></p>
+			<div id='div-client-id'></div>"
+			. $register_form . $booking_history_form . "
+			<hr>
+		</div>";
+
+	$booking_select_form = 
+		"<div id='div-booking-select-form'>
+			<h4>Booking an Appointment</h4>
 			<table>
 				<tr><td>Doctor</td>
 					<td><select id='select-doctor'><option value='0'></option></select></td></tr>
@@ -77,29 +82,37 @@ function booking_form_handler() {
 					<td><input type=text class='DatePicker' id='input-date' /></td></tr>
 
 				<tr><td><button id='btn-check-availability'>Check availability</button></td></tr>
+			</table>
+		</div>";
+
+	$check_availablility_form = 
+		"<div id='div-checking-form'>
+			<table>
 				<tr><td colspan=2>
-						<h3>Available location</h3>
+						<h4>Available location</h4>
 						<div id='div-available-location'>
 						</div></td></tr>
 				<tr><td colspan=2>
-						<h3>Availability Slots</h3>
+						<h4>Availability Slots</h4>
 						<div id='div-schedule'>
 						</div></td></tr>
 				<tr><td colspan=2>
-						<h3>Booked Appointments</h3>
+						<h4>Booked Appointments</h4>
 						<div id='div-appointments'>
 						</div></td></tr>
-				<tr><td>Time</td>
-					<td><input type=text class='TimePicker' id='input-start-time' size=9 />
+				<tr><td colspan=2><h4>Time to book</h4></td></tr>
+				<tr><td colspan=2>
+					<span style='padding-left:20px padding-right: 20px'>from</span> 
+					<input type=text class='TimePicker' id='input-start-time' size=9 />
 					<span style='padding-left:20px padding-right: 20px'>to</span>
 					<input type=text class='TimePicker' id='input-end-time' size=9 /></td></tr>
 			</table>
-			<button id='btn-submit-booking'>Submit</button></div>
+			<button id='btn-submit-booking'>Submit Booking</button></div>
 			<div><h5 id='h-show-alert' style='color:red'></div>";
 
-	$html_form .= $register_form . $booking_form;
+	$html_form .= $booking_select_form . $check_availablility_form;
 
-	return $html_form;
+	return "<div style='max-width:600px;'>" . $html_form . "</div>";
 }
 
 add_action( 'wp_ajax_action_coreplus_api', 'ajax_call_coreplus' );
@@ -113,9 +126,6 @@ function ajax_call_coreplus() {
 	$api_url = 'https://sandbox.coreplus.com.au/API/Core/v2/'.$_POST['api_name'] .
 		($isSendURLHeader ? "/?" . $_POST['data'] : "/");
 	
-	// if ( $_POST['api_name'] == "availabilityslot" ) {
-	// 	var_dump($api_url);
-	// }
 	curl_setopt($curl, CURLOPT_URL, $api_url);	
 	curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
@@ -154,12 +164,6 @@ function generateJwToken($apiName, $callType, $isSendURLHeader, $postParam = '')
 		  // "url" => "/API/Core/v2/" . $apiName . "/",
 		  "url" => "/API/Core/v2/" . $apiName . ($isSendURLHeader ? "/?" . $postParam : "/"),
 		  "httpMethod" => $callType), COREPLUS_SECRET_KEY );
-	// if ($apiName == "availabilityslot"){
-	// 	var_dump($postParam);
-	// }
-		
-	/* $token = "Authorization: JwToken eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3MzY4MjQ0NCwiZXhwIjoxNDczNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvbG9jYXRpb24vIiwiaHR0cE1ldGhvZCI6IkdFVCJ9.SKJGvbkNrr2Pcsx1MVrxgsEbLjO2HJ9wAdqWb_MvAGo"; */
-	// $auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9zdGFnaW5nLmNvcmVwbHVzLmNvbS5hdSIsIm5iZiI6MTQ3NDUzNDkxNywiZXhwIjoxNDgwNzgyNDQ0LCJjb25zdW1lcklkIjoiMzUzODkxZDMtYTE4Ny00ZDFhLWE2Y2ItODdlYmMyZjZkYjI2IiwiYWNjZXNzVG9rZW4iOiI2MTc2ZGNhMC04YmUyLTQ5NmMtOWU0Ny1jYzRlZDA2ZmQ3YjIiLCJ1cmwiOiIvQVBJL0NvcmUvdjIvY2xpZW50LyIsImh0dHBNZXRob2QiOiJQT1NUIn0.1XbXFQhV-Ckl84HrUmKo1cwts_ywHMCyoh15Z15ZyX8";
 
 	return "Authorization: JwToken " . $auth;
 }

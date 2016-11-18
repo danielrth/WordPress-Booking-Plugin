@@ -5,23 +5,94 @@ jQuery( function ( $ )
 	$(document).ready( function() {
 
 		const timezoneId = "39d62534-501c-49cd-9da9-6fa8d6a81f48";//fixed for Melbourne
-		var locationsInfo = {};
+		var locationsList = [];
+		var clientsList = [];
+		var availableLoc = [];
+		var availableSlots = [];
+		var appointmentsOfDay = [];
+		var appointmentsHistory = [];
+		var apiIndex = -1;
 
-		$("input.DatePicker").datepicker();
+		$( "input.DatePicker" ).datepicker({
+	        showButtonPanel: true,
+	        minDate: new Date()
+	    });
+
 		$("input.BirthdayPicker").datepicker (
 		{
 			buttonImageOnly: true,
 			yearRange: '1910:2010',
 			changeYear: true
 		});
-		$("input.TimePicker").timepicker({ 'scrollDefault': 'now' });
+		// $("input.TimePicker").timepicker({ 'scrollDefault': 'now' });
 
+
+		//initially hide all forms except client select
 		$('#h-show-alert').hide();
+		$('#p-verify-client').hide();
+		$('#div-register-form').show();
+		$('#div-booking-select-form').hide();
+		$('#div-checking-form').hide();
 
-		sendRequestToAction('location', 'GET');
+		apiIndex = 1;
 		sendRequestToAction('client', 'GET');
-		sendRequestToAction('practitioner', 'GET');
+		//client select event
+		$('#select-registered-client').on('change', function (e) {
+			$('#div-booking-select-form').hide();
+			$('#div-checking-form').hide();
 
+		    if ($('#select-registered-client').prop('selectedIndex') == 0) {
+		    	$('#div-register-form').show();
+		    	$('#p-verify-client').hide();
+		    }
+		    else {
+		    	$('#div-register-form').hide();
+		    	$('#p-verify-client').show();
+		    }
+
+		    $('#div-history-form').html('');
+		    $('#div-client-id').html ('');
+		});
+		//confirm client ID on verify button click
+		$('#btn-verify-client-id').click(function() {
+			if ($('#select-registered-client').val() == $('#input-client-id').val()) {
+				$('#div-booking-select-form').show();
+
+			    if (appointmentsHistory.length == 0) {
+			    	//get recent appointments +- 20 days
+				    var startTime = formatDateStringFromTime( new Date(new Date().getTime() - 1000 * 3600 * 24 * 20) );
+				    var endTime = formatDateStringFromTime( new Date(new Date().getTime() + 1000 * 3600 * 24 * 20) );
+
+				    var postData = "startDate=" + startTime + "&endDate=" + endTime + "&timezoneId=" + timezoneId;
+					apiIndex = 3;
+					sendRequestToAction('appointment', 'GET', postData);	
+			    }
+				else {
+					showAllUserAppointments();
+				}
+				$('#div-client-id').html ("Your clientId :  " + $('#select-registered-client').val());
+			}
+			else {
+				$('#div-booking-select-form').hide();
+				alert ("Please enter agian...");
+			}
+		});
+		//hide availablility checking form on doctor select change
+		$('#select-doctor').on('change', function (e) {
+			$('#div-checking-form').hide();
+		});
+		//cancel appointment from history
+		$(document).on("click", ".btn-cancel-appointment", function(){
+			apiIndex = 5;
+			var postData = {
+			 	"appointmentId": this.id.slice(10, this.id.length), 
+			 	"deleted": "true"};
+
+			if (confirm("Are you sure to cancel the appointment?")) {
+				sendRequestToAction('appointment', 'POST', postData);
+				$(this).parent().remove();
+			}
+		});
 		//register new client info
 		$('#btn-submit-client').click(function() {
 			//validate input data
@@ -44,6 +115,7 @@ jQuery( function ( $ )
             	return;
             
 			//submit info to server API
+			apiIndex = 2;
 			var postData = {
 			 	"firstName": $('#input-client-firstname').val(), 
 			 	"lastName": $('#input-client-lastname').val(), 
@@ -70,35 +142,36 @@ jQuery( function ( $ )
 			if (isValid == false)
             	return;
 
+            $('#div-checking-form').hide();
+
             var checkDate = new Date ($('#input-date').val());
             var strCheckDate = checkDate.getFullYear() + '-' + 
             			formatTimeNumber(checkDate.getMonth() + 1) + '-' + 
             			formatTimeNumber(checkDate.getDate());
 
+            appointmentsOfDay = filterPractitionerAppointments(appointmentsHistory, $('#select-doctor').val(), strCheckDate);
+    		var strAPHtml = "";
+    		if (appointmentsOfDay.length == 0)
+    			strAPHtml = "No Appointments."
+			$.each(appointmentsOfDay, function(key, value) {
+		     	strAPHtml += "<p>" + value['startDateTime'].substr(11,5) + " ~ "  + value['endDateTime'].substr(11,5) + "</p>";
+			});
+    		$('#div-appointments').html(strAPHtml);
+
+            apiIndex = 4;
             var postData = "startDate=" + strCheckDate + "&endDate=" + strCheckDate + "&practitionerId=" + $('#select-doctor').val() + "&timezoneId=" + timezoneId;
 			sendRequestToAction('availabilityslot', 'GET', postData);
-			sendRequestToAction('appointment', 'GET', postData);
 		});
 
-		//submit booking appointment
+		//------------submit booking appointment-------------
 		$('#btn-submit-booking').click(function() {
-
-	      	cnvTimeline.fillStyle = "red";
-			cnvTimeline.strokeStyle = "green";
-			cnvTimeline.lineWidth = "1";
-			cnvTimeline.fillRect(200, 10, 200, 50);
-			cnvTimeline.strokeRect(0, 10, 400, 50);
-
-			return;
-			//validate input data
 
 			var isValid = true;
 			$('#select-registered-client,#select-doctor,#select-location,#input-date,#input-start-time,#input-end-time')
 			.each(function () {
                 if ($.trim($(this).val()) == '' || 
                 	($(this).attr('id')=='select-registered-client' && $(this).prop('selectedIndex') == 0) || 
-                	($(this).attr('id')=='select-doctor' && $(this).prop('selectedIndex') == 0) || 
-                	($(this).attr('id')=='select-location' && $(this).prop('selectedIndex') == 0)
+                	($(this).attr('id')=='select-doctor' && $(this).prop('selectedIndex') == 0)
                 ) {
                     isValid = false;
                     warnInvalidInput ($(this), false);
@@ -107,6 +180,7 @@ jQuery( function ( $ )
                     warnInvalidInput ($(this), true);
                 }
             });
+			if (!isValid) return;
 
 			var startDate = new Date ($('#input-date').val());
 			var startTimeDiff = getTimeDiffFromPicker($('#input-start-time').val());
@@ -127,41 +201,40 @@ jQuery( function ( $ )
 				warnInvalidInput ($('#input-end-time'), true);
 			}
 
+            startTime = new Date(startTime.getTime() - 60000 * startTime.getTimezoneOffset());
+            endTime = new Date(endTime.getTime() - 60000 * endTime.getTimezoneOffset());
+
+			var strStartTime = startTime.toISOString().slice(0, 19) + "+11:00";
+			var strEndTime = endTime.toISOString().slice(0, 19) + "+11:00";
+
+			if (!checkInAvailableSlots(availableSlots, strStartTime, strEndTime)) {
+				alert ("Time is not in available slots.");	
+				isValid = false;
+			}
+			else if (!checkInNearAppointment(appointmentsOfDay, strStartTime, strEndTime)) {
+				alert ("not in near appointment")
+				isValid = false;
+			}
+
 			if (isValid == false)
             	return;
 
-            startTime = new Date(startTime.getTime() + 3600000 * 10);
-            endTime = new Date(endTime.getTime() + 3600000 * 10);
-
-			var strStartTime = startTime.toISOString().slice(0, 19) + "+10:00";
-			var strEndTime = endTime.toISOString().slice(0, 19) + "+10:00";
-
 			var clientsArr = new Array();
 			clientsArr.push({"clientId": $('#select-registered-client').val()});
-			var doctorsArr = {"practitionerId": $('#select-doctor').val()}
-
+			var doctorsArr = {"practitionerId": $('#select-doctor').val()};
+			apiIndex = 6;
 			var postData = {
 			 	"startDateTime": strStartTime, 
 			 	"endDateTime": strEndTime, 
 			 	"practitioner": doctorsArr,
-			 	"locationId": $('#select-location').val(),
+			 	"locationId": availableLoc['locationId'],
 			 	"clients": clientsArr};
-			// console.log (postData);
 			sendRequestToAction('appointment', 'POST', postData);
-		});
-
-		$('#select-registered-client').on('change', function (e) {
-		    if ($('#select-registered-client').prop('selectedIndex') == 0) {
-		    	$('#div-register-form').show();
-		    }
-		    else {
-		    	$('#div-register-form').hide();
-		    }
 		});
 
 		function sendRequestToAction(api_name, request_type, post_data = "") {
 
-			if (request_type == "POST") {
+			if (apiIndex == 6 || apiIndex == 2 || apiIndex == 4 || apiIndex == 1) {
 				$('#h-show-alert').html('Waiting response. Please wait a minute...');
 				$('#h-show-alert').show();
 			}
@@ -170,8 +243,8 @@ jQuery( function ( $ )
 			}
 
 			jQuery.post(
-			    // '/wp-admin/admin-ajax.php',
-			    '/mywp/wp-admin/admin-ajax.php',
+			    // '/mywp/wp-admin/admin-ajax.php',
+			    '/wp-admin/admin-ajax.php',
 			    {
 			        'action': 'action_coreplus_api',
 			        'api_name':   api_name,
@@ -185,19 +258,24 @@ jQuery( function ( $ )
 			    		var resp_data = jQuery.parseJSON(response);
 				        switch(api_name) {
 				        	case "location":
-				        		locationsInfo = resp_data.locations;
+				        		locationsList = resp_data.locations;
 				        		break;
 				        	case "client":
-				        		if (request_type == "GET") {
-				        			var clients = resp_data.clients;
-				        			$.each(clients, function(key, value) {
+				        		if (apiIndex == 1) {
+				        			clientsList = resp_data.clients;
+				        			$.each(clientsList, function(key, value) {
 								     $('#select-registered-client')
 								         .append($("<option></option>")
 								            .attr("value",value['clientId'])
 								            .text(value['firstName'] + " " + value['lastName']));
 									});
+
+				        			$('#h-show-alert').html('');
+				        			apiIndex = 7;
+									sendRequestToAction('location', 'GET');
+									sendRequestToAction('practitioner', 'GET');
 				        		}
-				        		else {
+				        		else if (apiIndex == 2) {
 				        			var newClient = resp_data.client;
 				        			$('#select-registered-client')
 								         .append($("<option></option>")
@@ -205,7 +283,9 @@ jQuery( function ( $ )
 								            .text($('#input-client-firstname').val() + " " + $('#input-client-lastname').val()));
 								    $("#select-registered-client option:last").attr("selected","selected");
 								    $('#div-register-form').hide();
-								    $('#h-show-alert').html('You are successfully registered.');
+								    $('#div-client-id').html ("Your clientId :  " + $('#select-registered-client').val());
+								    $('#h-show-alert').html('You are successfully registered.<br>Please keep your ID for future using.');
+								    $('#div-booking-select-form').show();
 				        		}
 				        		
 				        		break;
@@ -219,7 +299,17 @@ jQuery( function ( $ )
 								});
 				        		break;
 				        	case "appointment":
-				        		if (request_type == "POST") {
+				        		if (apiIndex == 3) {
+				        			//get all recent appointments
+				        			appointmentsHistory = resp_data.appointments;
+					        		showAllUserAppointments();
+				        		}
+				        		else if (apiIndex == 5) {
+				        			//removed appointemtn from history
+				        			var removedAppointment = resp_data.appointment;
+				        		}
+				        		else if (apiIndex == 6) {
+				        			//booked new appointment
 				        			if ('appointment' in resp_data) {
 					        			var newApp = resp_data.appointment;
 						        		if ('appointmentId' in newApp) {
@@ -234,100 +324,50 @@ jQuery( function ( $ )
 					        			$('#h-show-alert').html('Failed. Try again later.');
 					        		}
 				        		}
-				        		else {
-				        			var appointments = resp_data.appointments;
-					        		var strAPHtml = "";
-					        		$.each(appointments, function(key, value) {
-								     	strAPHtml += "<p>" + value['startDateTime'].substr(11,5) + " ~ "  + value['endDateTime'].substr(11,5) + "</p>";
-									});
-					        		$('#div-appointments').html(strAPHtml);
-				        		}
 				        		
 				        		break;
 				        	case "availabilityslot":
-				        		var timeSlots = resp_data.timeslots;
+				        		availableSlots = resp_data.timeslots;
+				        		// console.log(availableSlots);
 				        		var strAVHtml = "";
-				        		var availableLoc = "";
-				        		$.each(timeSlots, function(key, value) {
+				        		$.each(availableSlots, function(key, value) {
 							     	strAVHtml += "<p>" + value['startDateTime'].substr(11,5) + " ~ "  + value['endDateTime'].substr(11,5) + "</p>";
 								});
+								$('#div-checking-form').show();
 				        		$('#div-schedule').html(strAVHtml);
 
-								if (timeSlots.length > 0) {
-									var loc = "";
-									for (var key in locationsInfo) {
-										if (locationsInfo[key]['locationId'] == timeSlots[0]['locationId']){
-											loc = locationsInfo[key]['name']
+								if (availableSlots.length > 0) {
+									for (var key in locationsList) {
+										if (locationsList[key]['locationId'] == availableSlots[0]['locationId']){
+											availableLoc = locationsList[key];
 										}
 									}
-									$('#div-available-location').html(loc);	
+									$('#div-available-location').html(availableLoc['name']);	
 								}
-							    
-				        		console.log(locationsInfo);
+								disableTimeRanges($("input.TimePicker"), availableSlots);
+								$('#h-show-alert').html('');
 				        		break;
 				        	default:
 				        		break;
 				        }
 			    	}
 			        catch(e) {
-			        	// alert(e);
+			        	alert(e);
 			        	$('#h-show-alert').html('Failed. Try again later.');
 			        }
 			    }
 			);
 		}
+
+		function showAllUserAppointments() {
+			var strAPHtml = "<h5>Appointments history</h5>";
+			var userApps = filterUserAppointments(appointmentsHistory, $('#select-registered-client').val());
+			$.each(userApps, function(key, value) {
+		     	strAPHtml += "<p><span style='margin-right:40px;'>" + value['startDateTime'].substr(0,16).replace('T', '  ') + " ~ "
+		     	 + value['endDateTime'].substr(0,16).replace('T', '  ') + "</span>";
+		     	strAPHtml += "<button class='btn-cancel-appointment' id=btncancel_" + value['appointmentId'] + ">Cancel</button></p>";
+			});
+			$('#div-history-form').html(strAPHtml);
+		}
 	});
-
-	function formatTimeNumber (ttt) {
-		return ttt < 10 ? "0" + ttt : "" + ttt;
-	}
-
-	function convertOffsetToTimeZone(offsetValue) {
-		var strTimezone = offsetValue <= 0 ? "+" : "-";
-
-		offsetValue = Math.abs(offsetValue);
-		var offsetHours = offsetValue / 60;
-
-		strTimezone += Math.floor(offsetHours) >= 10 ? Math.floor(offsetHours).toString() : "0" + Math.floor(offsetHours).toString();
-
-		strTimezone += ":";
-		var offsetMinutes = offsetValue - offsetHours * 60;
-		strTimezone += offsetMinutes >= 10 ? offsetMinutes.toString() : "0" + offsetMinutes.toString();
-		return strTimezone;
-	}
-
-	function getTimeDiffFromPicker(strTime) {
-		if (strTime.indexOf('am') !== -1) {
-			var numTime = strTime.replace('am' , '').split(':');
-			var numHour = parseInt(numTime[0]);
-			if (numHour >= 12) numHour = numHour - 12;
-			return numHour * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
-		}
-		if (strTime.indexOf('pm') !== -1) {
-			var numTime = strTime.replace('pm' , '').split(':');
-			return (12 + parseInt(numTime[0])) * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
-		}
-		return 0;
-	}
-
-	function isValidEmailAddress(emailAddress) {
-	    var pattern = /^([a-z\d!#$%&'*+\-\/=?^_`{|}~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+(\.[a-z\d!#$%&'*+\-\/=?^_`{|}~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+)*|"((([ \t]*\r\n)?[ \t]+)?([\x01-\x08\x0b\x0c\x0e-\x1f\x7f\x21\x23-\x5b\x5d-\x7e\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|\\[\x01-\x09\x0b\x0c\x0d-\x7f\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))*(([ \t]*\r\n)?[ \t]+)?")@(([a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|[a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF][a-z\d\-._~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]*[a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])\.)+([a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|[a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF][a-z\d\-._~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]*[a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])\.?$/i;
-	    return pattern.test(emailAddress);
-	};
-
-	function warnInvalidInput(elementObj, valid) {
-		if(valid == false) {
-			elementObj.css({
-                "border": "1px solid red",
-                "background": "#FFCECE"
-            });
-		}
-		else {
-			elementObj.css({
-                "border": "",
-                "background": ""
-            });
-		}
-	}
-
 });
