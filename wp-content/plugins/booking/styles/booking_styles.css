@@ -1,0 +1,21 @@
+div#ui-datepicker-div {
+    font-size: 12px;
+    line-height: 1.4em;
+}
+
+.btn-booking-time {
+	font-size: 11px;
+	font-weight: 250;
+}
+
+.btn-booking-time.selected, #button-end-booking {
+	font-size: 11px;
+	font-weight: bold;
+	background-color: DarkTurquoise;
+}
+.btn-booking-time:focus,.btn-booking-time:active {
+   outline: none !important;
+}
+.div-booking-panel {
+	max-width:600px;
+}

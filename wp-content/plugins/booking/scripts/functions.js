@@ -3,17 +3,6 @@
 		var hour = timeStr.substr(11, 2) * 60 + timeStr.substr(14, 2) * 1;
 		return isNaN(hour) ? -1 : hour;
 	}
-	//detect if booking timeframe is belong to available slots
-	function checkInAvailableSlots (slotsArr, bookingStartTime, bookingEndTime) {
-		if (slotsArr.length == 0)	 return false;
-		for (var i = 0; i < slotsArr.length; i++) {
-			if (minutesFromStart(slotsArr[i]['startDateTime']) <= minutesFromStart(bookingStartTime) && 
-				(minutesFromStart(slotsArr[i]['endDateTime']) >= minutesFromStart(bookingEndTime))) {
-				return true;
-			}
-		}
-		return false;
-	}
 	//detect if booking timeframe is near an hour of appointment
 	function checkInNearAppointment (appArr, bookingStartTime, bookingEndTime) {
 		if (appArr.length == 0)	return true;
@@ -45,17 +34,8 @@
 	}
 
 	function getTimeDiffFromPicker(strTime) {
-		if (strTime.indexOf('am') !== -1) {
-			var numTime = strTime.replace('am' , '').split(':');
-			var numHour = parseInt(numTime[0]);
-			if (numHour >= 12) numHour = numHour - 12;
-			return numHour * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
-		}
-		if (strTime.indexOf('pm') !== -1) {
-			var numTime = strTime.replace('pm' , '').split(':');
-			return (12 + parseInt(numTime[0])) * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
-		}
-		return 0;
+		var numTime = strTime.split(':');
+		return parseInt(numTime[0]) * 3600 * 1000 + parseInt(numTime[1]) * 60 * 1000;
 	}
 
 	function isValidEmailAddress(emailAddress) {
@@ -148,4 +128,39 @@
 				praApps.push(arrApps[idx]);
 		}
 		return praApps;
+	}
+
+	function showTimeRangeButtons (startDivObj, buttonEndTime, slots) {
+		var htmlStartDivObj = '';
+		for (var i = 0; i < slots.length; i++) {
+			var startHour = parseInt(slots[i]['startDateTime'].substr(11,2));
+			var startMin = parseInt(slots[i]['startDateTime'].substr(14,2));
+			if (startMin != 0 && startMin <= 30) startHour = startHour + 0.5;
+			if (startMin != 0 && startMin > 30) startHour +=1;
+			var endHour = parseInt(slots[i]['endDateTime'].substr(11,2));
+			var endMin = parseInt(slots[i]['endDateTime'].substr(14,2));
+			if (endMin != 0 && endMin <= 30) endHour = endHour + 0.5;
+			if (endMin != 0 && endMin > 30) endHour +=1;
+
+			if (i == 0) buttonEndTime.html(getEndTimeHtml(slots[i]['startDateTime'].substr(11,5)));
+
+			for (var iHour = startHour * 2; iHour < endHour * 2; iHour++) {
+				if (i == 0 && iHour == startHour * 2)
+					htmlStartDivObj += "<button class='btn-booking-time selected'>" + 
+								parseInt(iHour/2) + ":" + (iHour % 2 == 0 ? "00" : "30") + "</button>";
+				else
+					htmlStartDivObj += "<button class='btn-booking-time'>" + 
+								parseInt(iHour/2) + ":" + (iHour % 2 == 0 ? "00" : "30") + "</button>";
+			}
+			htmlStartDivObj += "<br>";
+		}
+		startDivObj.html(htmlStartDivObj);
+	}
+
+	function getEndTimeHtml(strStartTime) { //after 30 mins
+		var timeSplit = strStartTime.split(':');
+		if (parseInt(timeSplit[1]) >= 30)
+			return parseInt(timeSplit[0]) + 1 + ':' + formatTimeNumber((parseInt(timeSplit[1]) + 30) % 60);
+		else
+			return parseInt(timeSplit[0]) + ':' + formatTimeNumber(parseInt(timeSplit[1]) + 30);
 	}

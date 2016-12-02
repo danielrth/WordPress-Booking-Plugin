@@ -12,6 +12,8 @@ jQuery( function ( $ )
 		var appointmentsOfDay = [];
 		var appointmentsHistory = [];
 		var apiIndex = -1;
+		var bookingStartDateTime = '';
+		var bookingEndDateTime = '';
 
 		$( "input.DatePicker" ).datepicker({
 	        showButtonPanel: true,
@@ -24,12 +26,9 @@ jQuery( function ( $ )
 			yearRange: '1910:2010',
 			changeYear: true
 		});
-		// $("input.TimePicker").timepicker({ 'scrollDefault': 'now' });
-
 
 		//initially hide all forms except client select
 		$('#h-show-alert').hide();
-		$('#p-verify-client').hide();
 		$('#div-register-form').show();
 		$('#div-booking-select-form').hide();
 		$('#div-checking-form').hide();
@@ -43,22 +42,11 @@ jQuery( function ( $ )
 
 		    if ($('#select-registered-client').prop('selectedIndex') == 0) {
 		    	$('#div-register-form').show();
-		    	$('#p-verify-client').hide();
 		    }
 		    else {
 		    	$('#div-register-form').hide();
-		    	$('#p-verify-client').show();
-		    }
-
-		    $('#div-history-form').html('');
-		    $('#div-client-id').html ('');
-		});
-		//confirm client ID on verify button click
-		$('#btn-verify-client-id').click(function() {
-			if ($('#select-registered-client').val() == $('#input-client-id').val()) {
-				$('#div-booking-select-form').show();
-
-			    if (appointmentsHistory.length == 0) {
+		    	$('#div-booking-select-form').show();
+		    	if (appointmentsHistory.length == 0) {
 			    	//get recent appointments +- 20 days
 				    var startTime = formatDateStringFromTime( new Date(new Date().getTime() - 1000 * 3600 * 24 * 20) );
 				    var endTime = formatDateStringFromTime( new Date(new Date().getTime() + 1000 * 3600 * 24 * 20) );
@@ -70,12 +58,9 @@ jQuery( function ( $ )
 				else {
 					showAllUserAppointments();
 				}
-				$('#div-client-id').html ("Your clientId :  " + $('#select-registered-client').val());
-			}
-			else {
-				$('#div-booking-select-form').hide();
-				alert ("Please enter agian...");
-			}
+		    }
+
+		    $('#div-history-form').html('');
 		});
 		//hide availablility checking form on doctor select change
 		$('#select-doctor').on('change', function (e) {
@@ -182,50 +167,23 @@ jQuery( function ( $ )
             });
 			if (!isValid) return;
 
-			var startDate = new Date ($('#input-date').val());
-			var startTimeDiff = getTimeDiffFromPicker($('#input-start-time').val());
-			var endTimeDiff = getTimeDiffFromPicker($('#input-end-time').val());
-
-			var startTime = new Date (startDate.getTime() + getTimeDiffFromPicker($('#input-start-time').val()));
-			var endTime = new Date (startDate.getTime() + getTimeDiffFromPicker($('#input-end-time').val()));
-
-			if (startTimeDiff == endTimeDiff) {
-				isValid = false;
-                warnInvalidInput ($('#input-end-time'), false);
-			}
-			else if (startTimeDiff > endTimeDiff) {
-				endTime = new Date(endTime.getTime() + 24 * 3600 * 1000);
-				warnInvalidInput ($('#input-end-time'), true);
-			}
-			else {
-				warnInvalidInput ($('#input-end-time'), true);
+			if (bookingStartDateTime == '' || bookingEndDateTime == '' || $('.selected').length == 0) {
+				alert ("Please choose start time and end time of the appointment.")
+				return;
 			}
 
-            startTime = new Date(startTime.getTime() - 60000 * startTime.getTimezoneOffset());
-            endTime = new Date(endTime.getTime() - 60000 * endTime.getTimezoneOffset());
-
-			var strStartTime = startTime.toISOString().slice(0, 19) + "+11:00";
-			var strEndTime = endTime.toISOString().slice(0, 19) + "+11:00";
-
-			if (!checkInAvailableSlots(availableSlots, strStartTime, strEndTime)) {
-				alert ("Time is not in available slots.");	
-				isValid = false;
-			}
-			else if (!checkInNearAppointment(appointmentsOfDay, strStartTime, strEndTime)) {
+			if (!checkInNearAppointment(appointmentsOfDay, bookingStartDateTime, bookingEndDateTime)) {
 				alert ("not in near appointment")
-				isValid = false;
+				return;
 			}
-
-			if (isValid == false)
-            	return;
 
 			var clientsArr = new Array();
 			clientsArr.push({"clientId": $('#select-registered-client').val()});
 			var doctorsArr = {"practitionerId": $('#select-doctor').val()};
 			apiIndex = 6;
 			var postData = {
-			 	"startDateTime": strStartTime, 
-			 	"endDateTime": strEndTime, 
+			 	"startDateTime": bookingStartDateTime, 
+			 	"endDateTime": bookingEndDateTime, 
 			 	"practitioner": doctorsArr,
 			 	"locationId": availableLoc['locationId'],
 			 	"clients": clientsArr};
@@ -283,7 +241,6 @@ jQuery( function ( $ )
 								            .text($('#input-client-firstname').val() + " " + $('#input-client-lastname').val()));
 								    $("#select-registered-client option:last").attr("selected","selected");
 								    $('#div-register-form').hide();
-								    $('#div-client-id').html ("Your clientId :  " + $('#select-registered-client').val());
 								    $('#h-show-alert').html('You are successfully registered.<br>Please keep your ID for future using.');
 								    $('#div-booking-select-form').show();
 				        		}
@@ -328,14 +285,8 @@ jQuery( function ( $ )
 				        		break;
 				        	case "availabilityslot":
 				        		availableSlots = resp_data.timeslots;
-				        		// console.log(availableSlots);
-				        		var strAVHtml = "";
-				        		$.each(availableSlots, function(key, value) {
-							     	strAVHtml += "<p>" + value['startDateTime'].substr(11,5) + " ~ "  + value['endDateTime'].substr(11,5) + "</p>";
-								});
-								$('#div-checking-form').show();
-				        		$('#div-schedule').html(strAVHtml);
-
+				        		$('#div-checking-form').show();
+				        		
 								if (availableSlots.length > 0) {
 									for (var key in locationsList) {
 										if (locationsList[key]['locationId'] == availableSlots[0]['locationId']){
@@ -344,7 +295,8 @@ jQuery( function ( $ )
 									}
 									$('#div-available-location').html(availableLoc['name']);	
 								}
-								disableTimeRanges($("input.TimePicker"), availableSlots);
+								showTimeRangeButtons($("#div-from-buttons"), $('#button-end-booking'), availableSlots);
+								// disableTimeRanges($('.TimePicker'), availableSlots);
 								$('#h-show-alert').html('');
 				        		break;
 				        	default:
@@ -369,5 +321,24 @@ jQuery( function ( $ )
 			});
 			$('#div-history-form').html(strAPHtml);
 		}
+
+		$(document).on("click", ".btn-booking-time", function(){
+			$('.btn-booking-time').removeClass('selected');
+			$(this).addClass('selected');
+
+			$('#button-end-booking').html(getEndTimeHtml($(this).html()));
+
+			var startDate = new Date ($('#input-date').val());
+			var startTimeDiff = getTimeDiffFromPicker($(this).html());
+
+			var startTime = new Date (startDate.getTime() + startTimeDiff);
+			var endTime = new Date (startDate.getTime() + startTimeDiff + 30 * 60 * 1000);
+
+            startTime = new Date(startTime.getTime() - 60000 * startTime.getTimezoneOffset());
+            endTime = new Date(endTime.getTime() - 60000 * endTime.getTimezoneOffset());
+
+			bookingStartDateTime = startTime.toISOString().slice(0, 19) + "+11:00";
+			bookingEndDateTime = endTime.toISOString().slice(0, 19) + "+11:00";
+		});
 	});
 });

@@ -16,6 +16,7 @@ define( 'COREPLUS_SECRET_KEY', "1kUwumuhkadPEWfKlgVH/3cUGM+DL4zNfw7YXwUm2zYednvA
 function booking_custom_assets() {
 	wp_enqueue_style( 'calendar-style', 'http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css' );
 	wp_enqueue_style( 'timepicker-style', BOOKING_PLUGIN_URL . '/styles/jquery.timepicker.css' );
+	wp_enqueue_style( 'booking-styles', BOOKING_PLUGIN_URL . '/styles/booking_styles.css' );
 }
 
 function booking_custom_jscript() {
@@ -63,10 +64,6 @@ function booking_form_handler() {
 				<select id='select-registered-client'>
 					<option value='0'>I am a new client</option></select>
 			</p>
-			<p id='p-verify-client'>
-				<span style='margin-right:30px'>Client ID: </span>
-				<input type=text id='input-client-id' placeholder='Please enter your ID' />
-				<button id='btn-verify-client-id'>Verify</button></p>
 			<div id='div-client-id'></div>"
 			. $register_form . $booking_history_form . "
 			<hr>
@@ -93,32 +90,26 @@ function booking_form_handler() {
 						<div id='div-available-location'>
 						</div></td></tr>
 				<tr><td colspan=2>
-						<h4>Availability Slots</h4>
-						<div id='div-schedule'>
-						</div></td></tr>
-				<tr><td colspan=2>
 						<h4>Booked Appointments</h4>
 						<div id='div-appointments'>
 						</div></td></tr>
 				<tr><td colspan=2><h4>Time to book</h4></td></tr>
-				<tr><td colspan=2>
-					<span style='padding-left:20px padding-right: 20px'>from</span> 
-					<input type=text class='TimePicker' id='input-start-time' size=9 />
-					<span style='padding-left:20px padding-right: 20px'>to</span>
-					<input type=text class='TimePicker' id='input-end-time' size=9 /></td></tr>
+				<tr><td>from: </td><td><div id='div-from-buttons'></td></tr>
+				<tr><td>to: </td><td><button id='button-end-booking'></button><td></tr>
 			</table>
 			<button id='btn-submit-booking'>Submit Booking</button></div>
 			<div><h5 id='h-show-alert' style='color:red'></div>";
 
 	$html_form .= $booking_select_form . $check_availablility_form;
 
-	return "<div style='max-width:600px;'>" . $html_form . "</div>";
+	return "<div class='div-booking-panel'>" . $html_form . "</div>";
 }
 
 add_action( 'wp_ajax_action_coreplus_api', 'ajax_call_coreplus' );
 add_action( 'wp_ajax_nopriv_action_coreplus_api', 'ajax_call_coreplus' );
 
 function ajax_call_coreplus() {
+	
 	$curl = curl_init();
 	$isSendURLHeader = $_POST['type'] == "GET" && $_POST['data'] != "";
 
@@ -154,8 +145,8 @@ function generateJwToken($apiName, $callType, $isSendURLHeader, $postParam = '')
 	require_once( plugin_dir_path(__FILE__) . 'jwt.php' );
 	
 	$auth = JWT::encode( array( 
-		  // "iss" => "http://localhost",
-		"iss" => "http://melbournewalking.merapatiala.com",
+		  "iss" => "http://localhost",
+		// "iss" => "http://melbournewalking.merapatiala.com",
 		  "aud" => "https://sandbox.coreplus.com.au",
 		  "nbf" => 1474534917,
 		  "exp" => 1483782444,
