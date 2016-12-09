@@ -53,6 +53,30 @@ function booking_form_handler() {
 					<td><input type=text id='input-client-email' /></td></tr>
 			</table>
 			<button id='btn-submit-client'>Register</button>
+		</div>
+		<div id='div-registered-client-info'>
+			<table>
+				<tr><td>Name: </td>
+					<td id='td-registered-name'></td>
+				</tr>
+				<tr><td>Client ID: </td>
+					<td id='td-registered-id'></td>
+				</tr>
+			</table>
+		</div>";
+
+	$verify_form = 
+		"<div id='div-verify-form'>
+			<h4>Verify Client Information</h4>
+			<table>
+				<tr><td>Name: </td>
+					<td><input type=text id='input-verify-name' /></td>
+				</tr>
+				<tr><td>Client ID: </td>
+					<td><input type=text id='input-verify-id' /></td>
+				</tr>
+			</table>
+			<button id='btn-verify-client'>Verify</button>
 		</div>";
 
 	$booking_history_form = "<div id='div-history-form'></div>";
@@ -60,12 +84,10 @@ function booking_form_handler() {
 	$html_form = 
 		"<div>
 			<p>
-				<span style='margin-right:30px'>Rigistered Clients</span>
-				<select id='select-registered-client'>
-					<option value='0'>I am a new client</option></select>
-			</p>
+				<label class='radio-inline'><input type='radio' name='clienttype' value='new'>  New client</label>
+				<label class='radio-inline'><input type='radio' name='clienttype' value='old'>  Registered client</label></p>
 			<div id='div-client-id'></div>"
-			. $register_form . $booking_history_form . "
+			. $register_form . $verify_form . $booking_history_form . "
 			<hr>
 		</div>";
 

@@ -11,6 +11,7 @@ jQuery( function ( $ )
 		var availableSlots = [];
 		var appointmentsOfDay = [];
 		var appointmentsHistory = [];
+		var selectedClientId = '';
 		var apiIndex = -1;
 		var bookingStartDateTime = '';
 		var bookingEndDateTime = '';
@@ -29,13 +30,59 @@ jQuery( function ( $ )
 
 		//initially hide all forms except client select
 		$('#h-show-alert').hide();
-		$('#div-register-form').show();
+		$('#div-register-form').hide();
+		$('#div-verify-form').hide();
 		$('#div-booking-select-form').hide();
 		$('#div-checking-form').hide();
+		$('#div-registered-client-info').hide();
 
 		apiIndex = 1;
 		sendRequestToAction('client', 'GET');
-		//client select event
+
+		$("input[name=clienttype]:radio").change(function () {
+			$('#div-booking-select-form').hide();
+			$('#div-checking-form').hide();
+			$('#h-show-alert').html('Failed. Try again later.');
+
+			if ($(this).val() == 'new') {
+				$('#div-register-form').show();
+				$('#div-verify-form').hide();
+			}
+			else {
+				$('#div-register-form').hide();
+				$('#div-verify-form').show();	
+			}
+		});
+		//verify client
+		$('#btn-verify-client').click(function() {
+			var hasClient = false;
+			for (var i = 0; i < clientsList.length; i++) {
+				if (clientsList[i]['clientId'].substr(0,3).toLowerCase() == $('#input-verify-id').val().toLowerCase() && 
+					(clientsList[i]['firstName'] + " " + clientsList[i]['lastName']).toLowerCase() == $('#input-verify-name').val().toLowerCase()) {
+
+						selectedClientId = clientsList[i]['clientId'];
+						$('#div-booking-select-form').show();
+				    	if (appointmentsHistory.length == 0) {
+					    	//get recent appointments +- 20 days
+						    var startTime = formatDateStringFromTime( new Date(new Date().getTime() - 1000 * 3600 * 24 * 20) );
+						    var endTime = formatDateStringFromTime( new Date(new Date().getTime() + 1000 * 3600 * 24 * 20) );
+
+						    var postData = "startDate=" + startTime + "&endDate=" + endTime + "&timezoneId=" + timezoneId;
+							apiIndex = 3;
+							sendRequestToAction('appointment', 'GET', postData);	
+					    }
+						else {
+							showAllUserAppointments();
+						}
+
+						hasClient = true;
+						break;
+				}
+			}
+			if (!hasClient)
+				alert("Entered client name or ID is incorrect.");
+		});
+		//client select
 		$('#select-registered-client').on('change', function (e) {
 			$('#div-booking-select-form').hide();
 			$('#div-checking-form').hide();
@@ -152,10 +199,9 @@ jQuery( function ( $ )
 		$('#btn-submit-booking').click(function() {
 
 			var isValid = true;
-			$('#select-registered-client,#select-doctor,#select-location,#input-date,#input-start-time,#input-end-time')
+			$('#select-doctor,#select-location,#input-date,#input-start-time,#input-end-time')
 			.each(function () {
                 if ($.trim($(this).val()) == '' || 
-                	($(this).attr('id')=='select-registered-client' && $(this).prop('selectedIndex') == 0) || 
                 	($(this).attr('id')=='select-doctor' && $(this).prop('selectedIndex') == 0)
                 ) {
                     isValid = false;
@@ -178,7 +224,7 @@ jQuery( function ( $ )
 			}
 
 			var clientsArr = new Array();
-			clientsArr.push({"clientId": $('#select-registered-client').val()});
+			clientsArr.push({"clientId": selectedClientId});
 			var doctorsArr = {"practitionerId": $('#select-doctor').val()};
 			apiIndex = 6;
 			var postData = {
@@ -221,12 +267,6 @@ jQuery( function ( $ )
 				        	case "client":
 				        		if (apiIndex == 1) {
 				        			clientsList = resp_data.clients;
-				        			$.each(clientsList, function(key, value) {
-								     $('#select-registered-client')
-								         .append($("<option></option>")
-								            .attr("value",value['clientId'])
-								            .text(value['firstName'] + " " + value['lastName']));
-									});
 
 				        			$('#h-show-alert').html('');
 				        			apiIndex = 7;
@@ -235,13 +275,16 @@ jQuery( function ( $ )
 				        		}
 				        		else if (apiIndex == 2) {
 				        			var newClient = resp_data.client;
-				        			$('#select-registered-client')
-								         .append($("<option></option>")
-								            .attr("value",newClient['clientId'])
-								            .text($('#input-client-firstname').val() + " " + $('#input-client-lastname').val()));
-								    $("#select-registered-client option:last").attr("selected","selected");
+				        			newClient['firstName'] = $('#input-client-firstname').val();
+				        			newClient['lastName'] = $('#input-client-lastname').val();
+								    clientsList.push(newClient);
+								    selectedClientId = newClient['clientId'];
 								    $('#div-register-form').hide();
-								    $('#h-show-alert').html('You are successfully registered.<br>Please keep your ID for future using.');
+								    $('#div-registered-client-info').show();
+								    $('#td-registered-name').html($('#input-client-firstname').val() + ' ' + $('#input-client-lastname').val());
+								    $('#td-registered-id').html(newClient['clientId'].substr(0,3));
+
+								    $('#h-show-alert').html('You are successfully registered. \n Please remember the registered name and ID');
 								    $('#div-booking-select-form').show();
 				        		}
 				        		
@@ -313,7 +356,8 @@ jQuery( function ( $ )
 
 		function showAllUserAppointments() {
 			var strAPHtml = "<h5>Appointments history</h5>";
-			var userApps = filterUserAppointments(appointmentsHistory, $('#select-registered-client').val());
+			var userApps = filterUserAppointments(appointmentsHistory, selectedClientId);
+			if (userApps.length == 0)	return;
 			$.each(userApps, function(key, value) {
 		     	strAPHtml += "<p><span style='margin-right:40px;'>" + value['startDateTime'].substr(0,16).replace('T', '  ') + " ~ "
 		     	 + value['endDateTime'].substr(0,16).replace('T', '  ') + "</span>";
