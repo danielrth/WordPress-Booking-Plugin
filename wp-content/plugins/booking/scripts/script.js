@@ -91,6 +91,7 @@ jQuery( function ( $ )
 		    	$('#div-register-form').show();
 		    }
 		    else {
+		    	selectedClientId = $('#select-registered-client').val();
 		    	$('#div-register-form').hide();
 		    	$('#div-booking-select-form').show();
 		    	if (appointmentsHistory.length == 0) {
@@ -247,8 +248,8 @@ jQuery( function ( $ )
 			}
 
 			jQuery.post(
-			    // '/mywp/wp-admin/admin-ajax.php',
-			    '/wp-admin/admin-ajax.php',
+			    '/mywp/wp-admin/admin-ajax.php',
+			    // '/wp-admin/admin-ajax.php',
 			    {
 			        'action': 'action_coreplus_api',
 			        'api_name':   api_name,
@@ -267,6 +268,12 @@ jQuery( function ( $ )
 				        	case "client":
 				        		if (apiIndex == 1) {
 				        			clientsList = resp_data.clients;
+				        			$.each(clientsList, function(key, value) {
+								     $('#select-registered-client')
+								         .append($("<option></option>")
+								            .attr("value",value['clientId'])
+								            .text(value['firstName'] + " " + value['lastName']));
+									});
 
 				        			$('#h-show-alert').html('');
 				        			apiIndex = 7;
@@ -339,6 +346,7 @@ jQuery( function ( $ )
 									$('#div-available-location').html(availableLoc['name']);	
 								}
 								showTimeRangeButtons($("#div-from-buttons"), $('#button-end-booking'), availableSlots);
+								$('#div-from-buttons:first-child').click();
 								// disableTimeRanges($('.TimePicker'), availableSlots);
 								$('#h-show-alert').html('');
 				        		break;
@@ -370,10 +378,14 @@ jQuery( function ( $ )
 			$('.btn-booking-time').removeClass('selected');
 			$(this).addClass('selected');
 
-			$('#button-end-booking').html(getEndTimeHtml($(this).html()));
+			getTimeframeFromButton($(this).html());
+		});
+
+		function getTimeframeFromButton(var strStartTimeButton) {
+			$('#button-end-booking').html(getEndTimeHtml(strStartTimeButton));
 
 			var startDate = new Date ($('#input-date').val());
-			var startTimeDiff = getTimeDiffFromPicker($(this).html());
+			var startTimeDiff = getTimeDiffFromPicker(strStartTimeButton);
 
 			var startTime = new Date (startDate.getTime() + startTimeDiff);
 			var endTime = new Date (startDate.getTime() + startTimeDiff + 30 * 60 * 1000);
@@ -383,6 +395,6 @@ jQuery( function ( $ )
 
 			bookingStartDateTime = startTime.toISOString().slice(0, 19) + "+11:00";
 			bookingEndDateTime = endTime.toISOString().slice(0, 19) + "+11:00";
-		});
+		}
 	});
 });
