@@ -60,6 +60,11 @@ function booking_form_handler() {
 	$html_form = 
 		"<div>
 			<p>
+				<span style='margin-right:30px'>Locations</span>
+				<select id='select-location'>
+					<option value='0'></option></select>
+			</p>
+			<p>
 				<span style='margin-right:30px'>Rigistered Clients</span>
 				<select id='select-registered-client'>
 					<option value='0'>I am a new client</option></select>
@@ -77,7 +82,6 @@ function booking_form_handler() {
 				<tr><td>Date</td>
 					<td><input type=text class='DatePicker' id='input-date' /></td></tr>
 
-				<tr><td><button id='btn-check-availability'>Check availability</button></td></tr>
 			</table>
 		</div>";
 

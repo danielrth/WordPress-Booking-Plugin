@@ -53,35 +53,7 @@ jQuery( function ( $ )
 				$('#div-verify-form').show();	
 			}
 		});
-		//verify client
-		$('#btn-verify-client').click(function() {
-			var hasClient = false;
-			for (var i = 0; i < clientsList.length; i++) {
-				if (clientsList[i]['clientId'].substr(0,3).toLowerCase() == $('#input-verify-id').val().toLowerCase() && 
-					(clientsList[i]['firstName'] + " " + clientsList[i]['lastName']).toLowerCase() == $('#input-verify-name').val().toLowerCase()) {
 
-						selectedClientId = clientsList[i]['clientId'];
-						$('#div-booking-select-form').show();
-				    	if (appointmentsHistory.length == 0) {
-					    	//get recent appointments +- 20 days
-						    var startTime = formatDateStringFromTime( new Date(new Date().getTime() - 1000 * 3600 * 24 * 20) );
-						    var endTime = formatDateStringFromTime( new Date(new Date().getTime() + 1000 * 3600 * 24 * 20) );
-
-						    var postData = "startDate=" + startTime + "&endDate=" + endTime + "&timezoneId=" + timezoneId;
-							apiIndex = 3;
-							sendRequestToAction('appointment', 'GET', postData);	
-					    }
-						else {
-							showAllUserAppointments();
-						}
-
-						hasClient = true;
-						break;
-				}
-			}
-			if (!hasClient)
-				alert("Entered client name or ID is incorrect.");
-		});
 		//client select
 		$('#select-registered-client').on('change', function (e) {
 			$('#div-booking-select-form').hide();
@@ -115,17 +87,7 @@ jQuery( function ( $ )
 			$('#div-checking-form').hide();
 		});
 		//cancel appointment from history
-		$(document).on("click", ".btn-cancel-appointment", function(){
-			apiIndex = 5;
-			var postData = {
-			 	"appointmentId": this.id.slice(10, this.id.length), 
-			 	"deleted": "true"};
 
-			if (confirm("Are you sure to cancel the appointment?")) {
-				sendRequestToAction('appointment', 'POST', postData);
-				$(this).parent().remove();
-			}
-		});
 		//register new client info
 		$('#btn-submit-client').click(function() {
 			//validate input data
@@ -212,6 +174,12 @@ jQuery( function ( $ )
                     warnInvalidInput ($(this), true);
                 }
             });
+            if (availableLoc['locationId'] != $('#select-location').val()) {
+            	isValid = false;
+                warnInvalidInput ($('#select-location'), false);
+                warnInvalidInput ($('#select-doctor'), false);
+                alert('The selected location is not available for selected doctor.\n Please select location or doctor again.')
+            }
 			if (!isValid) return;
 
 			if (bookingStartDateTime == '' || bookingEndDateTime == '' || $('.selected').length == 0) {
@@ -248,8 +216,8 @@ jQuery( function ( $ )
 			}
 
 			jQuery.post(
-			    '/mywp/wp-admin/admin-ajax.php',
-			    // '/wp-admin/admin-ajax.php',
+			    // '/mywp/wp-admin/admin-ajax.php',
+			    '/wp-admin/admin-ajax.php',
 			    {
 			        'action': 'action_coreplus_api',
 			        'api_name':   api_name,
@@ -264,6 +232,12 @@ jQuery( function ( $ )
 				        switch(api_name) {
 				        	case "location":
 				        		locationsList = resp_data.locations;
+				        		$.each(locationsList, function(key, value) {
+							    $('#select-location')
+							         .append($("<option></option>")
+							            .attr("value",value['locationId'])
+							            .text(value['name']));
+								});
 				        		break;
 				        	case "client":
 				        		if (apiIndex == 1) {
@@ -346,7 +320,7 @@ jQuery( function ( $ )
 									$('#div-available-location').html(availableLoc['name']);	
 								}
 								showTimeRangeButtons($("#div-from-buttons"), $('#button-end-booking'), availableSlots);
-								$('#div-from-buttons:first-child').click();
+								getTimeframeFromButton($('#div-from-buttons button').eq(0).html());
 								// disableTimeRanges($('.TimePicker'), availableSlots);
 								$('#h-show-alert').html('');
 				        		break;
@@ -381,7 +355,7 @@ jQuery( function ( $ )
 			getTimeframeFromButton($(this).html());
 		});
 
-		function getTimeframeFromButton(var strStartTimeButton) {
+		function getTimeframeFromButton(strStartTimeButton) {
 			$('#button-end-booking').html(getEndTimeHtml(strStartTimeButton));
 
 			var startDate = new Date ($('#input-date').val());
